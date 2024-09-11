@@ -44,15 +44,16 @@ public class LokiClient {
     this.httpClient = clientBuilder.build();
   }
 
-  public QueryResult rangeQuery(String lokiQuery, Long start, Long end) throws LokiClientException {
+  public QueryResult rangeQuery(String lokiQuery, Instant start, Instant end) throws LokiClientException {
     final URI uri =
         new HttpUrl.Builder()
             .scheme(this.lokiEndpoint.getScheme())
             .host(this.lokiEndpoint.getHost())
             .port(this.lokiEndpoint.getPort())
+            .addPathSegments("loki/api/v1/query_range")
             .addQueryParameter("query", lokiQuery)
-            .addQueryParameter("start", start.toString())
-            .addQueryParameter("end", end.toString())
+            .addQueryParameter("start", Time.nanosFromInstant(start).toString())
+            .addQueryParameter("end", Time.nanosFromInstant(end).toString())
             .addQueryParameter("direction", "forward")
             .build()
             .uri();
@@ -74,7 +75,7 @@ public class LokiClient {
             .scheme(this.lokiEndpoint.getScheme())
             .host(this.lokiEndpoint.getHost())
             .port(this.lokiEndpoint.getPort())
-            .addPathSegment("/loki/api/v1/push")
+            .addPathSegments("loki/api/v1/push")
             .build()
             .uri();
 
@@ -123,7 +124,7 @@ public class LokiClient {
             .scheme(this.lokiEndpoint.getScheme())
             .host(this.lokiEndpoint.getHost())
             .port(this.lokiEndpoint.getPort())
-            .addPathSegment("/flush")
+            .addPathSegment("flush")
             .build()
             .uri();
 
@@ -149,7 +150,7 @@ public class LokiClient {
             .scheme(this.lokiEndpoint.getScheme())
             .host(this.lokiEndpoint.getHost())
             .port(this.lokiEndpoint.getPort())
-            .addPathSegment("/loki/api/v1/query")
+            .addPathSegments("loki/api/v1/query")
             .addQueryParameter("query", query)
             .build()
             .uri();
