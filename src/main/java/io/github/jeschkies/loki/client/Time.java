@@ -16,7 +16,7 @@ package io.github.jeschkies.loki.client;
 import java.time.Instant;
 
 public final class Time {
-  private Time() {
+    private Time() {
     throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
