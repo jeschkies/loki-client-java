@@ -44,7 +44,8 @@ public class LokiClient {
     this.httpClient = clientBuilder.build();
   }
 
-  public QueryResult rangeQuery(String lokiQuery, Instant start, Instant end) throws LokiClientException {
+  public QueryResult rangeQuery(String lokiQuery, Instant start, Instant end)
+      throws LokiClientException {
     final URI uri =
         new HttpUrl.Builder()
             .scheme(this.lokiEndpoint.getScheme())

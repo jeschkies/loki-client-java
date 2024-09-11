@@ -14,9 +14,6 @@
 package io.github.jeschkies.loki;
 
 import com.google.common.io.Resources;
-import org.testcontainers.containers.DockerComposeContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -24,50 +21,48 @@ import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import org.testcontainers.containers.DockerComposeContainer;
+import org.testcontainers.containers.wait.strategy.Wait;
 
-public class LokiTestServer
-        implements Closeable
-{
-    private static final int LOKI_PORT = 3100;
-    private static final String DEFAULT_VERSION = "3.1.0";
+public class LokiTestServer implements Closeable {
+  private static final int LOKI_PORT = 3100;
+  private static final String DEFAULT_VERSION = "3.1.0";
 
-    public static final String USER = "admin";
-    public static final String PASSWORD = "password";
-    public static final String LOKI_QUERY_API = "/loki/api/v1/query";
+  public static final String USER = "admin";
+  public static final String PASSWORD = "password";
+  public static final String LOKI_QUERY_API = "/loki/api/v1/query";
 
-    private final DockerComposeContainer dockerCompose;
+  private final DockerComposeContainer dockerCompose;
 
-    public LokiTestServer()
-            throws IOException
-    {
-        this(DEFAULT_VERSION, false);
-    }
+  public LokiTestServer() throws IOException {
+    this(DEFAULT_VERSION, false);
+  }
 
-    public LokiTestServer(String version, boolean enableBasicAuth)
-            throws IOException
-    {
-        File composeFile = File.createTempFile("loki-compose-", ".yaml");
-        composeFile.deleteOnExit();
-        Files.copy(
-                Resources.asByteSource(Resources.getResource("compose.yaml")).openStream(),
-                composeFile.toPath(),
-                StandardCopyOption.REPLACE_EXISTING);
-        this.dockerCompose = new DockerComposeContainer(composeFile)
-                .withExposedService("loki", 3100)
-                .waitingFor("loki", Wait.forHttp("/ready").forResponsePredicate(response -> response.contains("ready")))
-                .withStartupTimeout(Duration.ofSeconds(360));
+  public LokiTestServer(String version, boolean enableBasicAuth) throws IOException {
+    File composeFile = File.createTempFile("loki-compose-", ".yaml");
+    composeFile.deleteOnExit();
+    Files.copy(
+        Resources.asByteSource(Resources.getResource("compose.yaml")).openStream(),
+        composeFile.toPath(),
+        StandardCopyOption.REPLACE_EXISTING);
+    this.dockerCompose =
+        new DockerComposeContainer(composeFile)
+            .withExposedService("loki", 3100)
+            .waitingFor(
+                "loki",
+                Wait.forHttp("/ready").forResponsePredicate(response -> response.contains("ready")))
+            .withStartupTimeout(Duration.ofSeconds(360));
 
-        this.dockerCompose.withServices("loki").start();
-    }
+    this.dockerCompose.withServices("loki").start();
+  }
 
-    public URI getUri()
-    {
-        return URI.create("http://" + dockerCompose.getServiceHost("loki", LOKI_PORT) + ":" + LOKI_PORT + "/");
-    }
+  public URI getUri() {
+    return URI.create(
+        "http://" + dockerCompose.getServiceHost("loki", LOKI_PORT) + ":" + LOKI_PORT + "/");
+  }
 
-    @Override
-    public void close()
-    {
-        dockerCompose.close();
-    }
+  @Override
+  public void close() {
+    dockerCompose.close();
+  }
 }

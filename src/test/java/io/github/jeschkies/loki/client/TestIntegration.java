@@ -7,13 +7,12 @@ import io.github.jeschkies.loki.LokiTestServer;
 import io.github.jeschkies.loki.client.model.Data;
 import io.github.jeschkies.loki.client.model.QueryResult;
 import io.github.jeschkies.loki.client.model.Streams;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.time.Duration;
 import java.time.Instant;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 class TestIntegration {
   private static LokiClient client;
@@ -21,8 +20,7 @@ class TestIntegration {
 
   // TODO: maybe make this a resource
   @BeforeAll
-  public static void setup() throws IOException
-  {
+  public static void setup() throws IOException {
     server = new LokiTestServer();
     client = new LokiClient(new LokiClientConfig(server.getUri(), Duration.ofSeconds(10)));
   }
@@ -32,7 +30,8 @@ class TestIntegration {
     Instant start = Instant.now().minus(Duration.ofHours(3));
     Instant end = start.plus(Duration.ofHours(2));
 
-    client.pushLogLine("line foo", end.minus(Duration.ofMinutes(5)), ImmutableMap.of("test", "roundtrip"));
+    client.pushLogLine(
+        "line foo", end.minus(Duration.ofMinutes(5)), ImmutableMap.of("test", "roundtrip"));
     client.flush();
     QueryResult result = client.rangeQuery("{test=\"roundtrip\"}", start, end);
     assertThat(result.getData().getResultType()).isEqualTo(Data.ResultType.Streams);
