@@ -1,2 +1,2 @@
-rootProject.name = "loki"
+rootProject.name = "loki-client"
 

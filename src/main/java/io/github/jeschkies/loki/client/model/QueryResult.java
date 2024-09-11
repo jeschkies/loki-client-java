@@ -14,43 +14,34 @@
 package io.github.jeschkies.loki.client.model;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.io.IOException;
 import java.io.InputStream;
 
-public class QueryResult
-{
-    static ObjectMapper mapper = new ObjectMapper();
+public class QueryResult {
+  static ObjectMapper mapper = new ObjectMapper();
 
-    public static QueryResult fromJSON(InputStream input)
-            throws IOException
-    {
-        return mapper.readValue(input, QueryResult.class);
-    }
+  public static QueryResult fromJSON(InputStream input) throws IOException {
+    return mapper.readValue(input, QueryResult.class);
+  }
 
-    public String getStatus()
-    {
-        return status;
-    }
+  public String getStatus() {
+    return status;
+  }
 
-    public Data getData()
-    {
-        return data;
-    }
+  public Data getData() {
+    return data;
+  }
 
-    public void setStatus(String status)
-    {
-        this.status = status;
-    }
+  public void setStatus(String status) {
+    this.status = status;
+  }
 
-    public void setData(Data data)
-    {
-        this.data = data;
-    }
+  public void setData(Data data) {
+    this.data = data;
+  }
 
-    private String status;
-    private Data data;
+  private String status;
+  private Data data;
 
-    public abstract static sealed class Result
-            permits Streams, Matrix {}
+  public abstract static sealed class Result permits Streams, Matrix {}
 }

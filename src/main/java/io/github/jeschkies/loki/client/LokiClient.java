@@ -11,24 +11,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.trino.plugin.loki;
+package io.github.jeschkies.loki.client;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.inject.Inject;
-import io.airlift.http.client.HttpUriBuilder;
-import io.trino.plugin.loki.model.Data;
-import io.trino.plugin.loki.model.QueryResult;
-import io.trino.spi.TrinoException;
-import io.trino.spi.type.Type;
-import io.trino.spi.type.TypeManager;
-import okhttp3.Credentials;
-import okhttp3.Interceptor;
-import okhttp3.MediaType;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.RequestBody;
-import okhttp3.Response;
-
+import io.github.jeschkies.loki.client.model.Data;
+import io.github.jeschkies.loki.client.model.QueryResult;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
@@ -36,184 +23,154 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
+import okhttp3.HttpUrl;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 
-import static com.google.common.net.HttpHeaders.AUTHORIZATION;
-import static io.trino.spi.StandardErrorCode.GENERIC_USER_ERROR;
-import static io.trino.spi.type.TypeSignature.mapType;
-import static io.trino.spi.type.VarcharType.VARCHAR;
-import static java.util.Objects.requireNonNull;
+public class LokiClient {
+  private final OkHttpClient httpClient;
+  private final URI lokiEndpoint;
 
-public class LokiClient
-{
-    private final OkHttpClient httpClient;
-    private final URI lokiEndpoint;
+  private static final MediaType JsonMediaType = MediaType.parse("application/json");
 
-    private final Type varcharMapType;
+  public LokiClient(LokiClientConfig config) {
+    this.lokiEndpoint = config.uri();
 
-    private static final MediaType JsonMediaType = MediaType.parse("application/json");
+    OkHttpClient.Builder clientBuilder =
+        new OkHttpClient.Builder().readTimeout(Duration.ofMillis(config.readTimeout().toMillis()));
+    this.httpClient = clientBuilder.build();
+  }
 
-    public Type getVarcharMapType()
-    {
-        return varcharMapType;
+  public QueryResult rangeQuery(String lokiQuery, Long start, Long end) throws LokiClientException {
+    final URI uri =
+        new HttpUrl.Builder()
+            .scheme(this.lokiEndpoint.getScheme())
+            .host(this.lokiEndpoint.getHost())
+            .port(this.lokiEndpoint.getPort())
+            .addQueryParameter("query", lokiQuery)
+            .addQueryParameter("start", start.toString())
+            .addQueryParameter("end", end.toString())
+            .addQueryParameter("direction", "forward")
+            .build()
+            .uri();
+
+    try (Response response = requestUri(uri)) {
+      if (response.isSuccessful() && response.body() != null) {
+        return QueryResult.fromJSON(response.body().byteStream());
+      }
+      throw new LokiClientException("Bad response " + response.code() + " " + response.message());
+    } catch (IOException e) {
+      throw new LokiClientException("Error reading range query", e);
     }
+  }
 
-    @Inject
-    public LokiClient(LokiConnectorConfig config, TypeManager typeManager)
-    {
-        this.lokiEndpoint = config.getLokiURI();
-        requireNonNull(typeManager, "typeManager is null");
+  public void pushLogLine(String log, Instant timestamp, Map<String, String> labels)
+      throws IOException, LokiClientException {
+    final URI uri =
+        new HttpUrl.Builder()
+            .scheme(this.lokiEndpoint.getScheme())
+            .host(this.lokiEndpoint.getHost())
+            .port(this.lokiEndpoint.getPort())
+            .addPathSegment("/loki/api/v1/push")
+            .build()
+            .uri();
 
-        OkHttpClient.Builder clientBuilder = new OkHttpClient.Builder().readTimeout(Duration.ofMillis(config.getReadTimeout().toMillis()));
-        setupBasicAuth(clientBuilder, config.getUser(), config.getPassword());
-        this.httpClient = clientBuilder.build();
-        varcharMapType = typeManager.getType(mapType(VARCHAR.getTypeSignature(), VARCHAR.getTypeSignature()));
+    ObjectMapper mapper = new ObjectMapper();
+    var root = mapper.createObjectNode();
+    var streams = mapper.createArrayNode();
+    var stream = mapper.createObjectNode();
+    var lbls = mapper.createObjectNode();
+    for (var pair : labels.entrySet()) {
+      lbls.put(pair.getKey(), pair.getValue());
     }
+    var values = mapper.createArrayNode();
+    var line = mapper.createArrayNode();
+    line.add(Time.nanosFromInstant(timestamp).toString());
+    line.add(log);
+    values.add(line);
+    stream.set("stream", lbls);
+    stream.set("values", values);
+    streams.add(stream);
+    root.set("streams", streams);
 
-    private static void setupBasicAuth(OkHttpClient.Builder clientBuilder, Optional<String> user, Optional<String> password)
-    {
-        if (user.isPresent() && password.isPresent()) {
-            clientBuilder.addInterceptor(basicAuth(user.get(), password.get()));
+    String bodyStr = mapper.writeValueAsString(root);
+    RequestBody body = RequestBody.create(bodyStr, JsonMediaType);
+
+    Request.Builder requestBuilder =
+        new Request.Builder()
+            .post(body)
+            // TODO .header("X-Scope-OrgID", "1")
+            .url(uri.toString());
+
+    try (Response response = httpClient.newCall(requestBuilder.build()).execute()) {
+      if (!response.isSuccessful()) {
+        String error = "";
+        if (response.body() != null) {
+          error = ": " + response.body().string();
         }
+        throw new LokiClientException(
+            "Bad response " + response.code() + " " + response.message() + error);
+      }
     }
+  }
 
-    private static Interceptor basicAuth(String user, String password)
-    {
-        requireNonNull(user, "user is null");
-        requireNonNull(password, "password is null");
-        if (user.contains(":")) {
-            throw new TrinoException(GENERIC_USER_ERROR, "Illegal character ':' found in username");
-        }
+  public void flush() throws IOException, LokiClientException {
+    final URI uri =
+        new HttpUrl.Builder()
+            .scheme(this.lokiEndpoint.getScheme())
+            .host(this.lokiEndpoint.getHost())
+            .port(this.lokiEndpoint.getPort())
+            .addPathSegment("/flush")
+            .build()
+            .uri();
 
-        String credential = Credentials.basic(user, password);
-        return chain -> chain.proceed(chain.request().newBuilder()
-                .header(AUTHORIZATION, credential)
-                .build());
+    Request.Builder requestBuilder =
+        new Request.Builder().post(RequestBody.create("", JsonMediaType)).url(uri.toString());
+
+    try (Response response = httpClient.newCall(requestBuilder.build()).execute()) {
+      if (!response.isSuccessful()) {
+        throw new LokiClientException("Bad response " + response.code() + " " + response.message());
+      }
     }
+  }
 
-    public QueryResult rangeQuery(String lokiQuery, Long start, Long end)
-    {
-        final URI uri =
-                HttpUriBuilder.uriBuilderFrom(lokiEndpoint)
-                        .appendPath("/loki/api/v1/query_range")
-                        .addParameter("query", lokiQuery)
-                        .addParameter("start", start.toString())
-                        .addParameter("end", end.toString())
-                        .addParameter("direction", "forward")
-                        .build();
+  public Response requestUri(URI uri) throws IOException {
+    Request.Builder requestBuilder = new Request.Builder().url(uri.toString());
+    return httpClient.newCall(requestBuilder.build()).execute();
+  }
 
-        try (Response response = requestUri(uri)) {
-            if (response.isSuccessful() && response.body() != null) {
-                return QueryResult.fromJSON(response.body().byteStream());
-            }
-            throw new TrinoException(LokiErrorCode.LOKI_UNKNOWN_ERROR, "Bad response " + response.code() + " " + response.message());
-        }
-        catch (IOException e) {
-            throw new TrinoException(LokiErrorCode.LOKI_UNKNOWN_ERROR, "Error reading range query", e);
-        }
+  public Data.ResultType getExpectedResultType(String query) throws LokiClientException {
+    // Execute instant query to determine whether the query is a log or metric expression.
+    final URI uri =
+        new HttpUrl.Builder()
+            .scheme(this.lokiEndpoint.getScheme())
+            .host(this.lokiEndpoint.getHost())
+            .port(this.lokiEndpoint.getPort())
+            .addPathSegment("/loki/api/v1/query")
+            .addQueryParameter("query", query)
+            .build()
+            .uri();
+
+    try (Response response = requestUri(uri)) {
+      if (response.isSuccessful() && response.body() != null) {
+        return deserializeResultType(response.body().byteStream());
+      }
+      throw new LokiClientException("Bad response " + response.code() + " " + response.message());
+    } catch (IOException e) {
+      throw new LokiClientException("Error reading instant query", e);
     }
+  }
 
-    public void pushLogLine(String log, Instant timestamp, Map<String, String> labels)
-            throws IOException
-    {
-        final URI uri =
-                HttpUriBuilder.uriBuilderFrom(lokiEndpoint)
-                        .appendPath("/loki/api/v1/push")
-                        .build();
-
-        ObjectMapper mapper = new ObjectMapper();
-        var root = mapper.createObjectNode();
-        var streams = mapper.createArrayNode();
-        var stream = mapper.createObjectNode();
-        var lbls = mapper.createObjectNode();
-        for (var pair : labels.entrySet()) {
-            lbls.put(pair.getKey(), pair.getValue());
-        }
-        var values = mapper.createArrayNode();
-        var line = mapper.createArrayNode();
-        line.add(Time.nanosFromInstant(timestamp).toString());
-        line.add(log);
-        values.add(line);
-        stream.set("stream", lbls);
-        stream.set("values", values);
-        streams.add(stream);
-        root.set("streams", streams);
-
-        String bodyStr = mapper.writeValueAsString(root);
-        RequestBody body = RequestBody.create(bodyStr, JsonMediaType);
-
-        Request.Builder requestBuilder = new Request.Builder()
-                .post(body)
-                // TODO .header("X-Scope-OrgID", "1")
-                .url(uri.toString());
-
-        try (Response response = httpClient.newCall(requestBuilder.build()).execute()) {
-            if (!response.isSuccessful()) {
-                String error = "";
-                if (response.body() != null) {
-                    error = ": " + response.body().string();
-                }
-                throw new TrinoException(LokiErrorCode.LOKI_UNKNOWN_ERROR, "Bad response " + response.code() + " " + response.message() + error);
-            }
-        }
+  private Data.ResultType deserializeResultType(InputStream input) throws IOException {
+    ObjectMapper mapper = new ObjectMapper();
+    var node = mapper.readTree(input);
+    if (Objects.equals(node.get("data").get("resultType").asText(), "streams")) {
+      return Data.ResultType.Streams;
+    } else {
+      return Data.ResultType.Matrix;
     }
-
-    public void flush()
-            throws IOException
-    {
-        final URI uri =
-                HttpUriBuilder.uriBuilderFrom(lokiEndpoint)
-                        .appendPath("/flush")
-                        .build();
-
-        Request.Builder requestBuilder = new Request.Builder()
-                .post(RequestBody.create("", JsonMediaType))
-                .url(uri.toString());
-
-        try (Response response = httpClient.newCall(requestBuilder.build()).execute()) {
-            if (!response.isSuccessful()) {
-                throw new TrinoException(LokiErrorCode.LOKI_UNKNOWN_ERROR, "Bad response " + response.code() + " " + response.message());
-            }
-        }
-    }
-
-    public Response requestUri(URI uri)
-            throws IOException
-    {
-        Request.Builder requestBuilder = new Request.Builder().url(uri.toString());
-        return httpClient.newCall(requestBuilder.build()).execute();
-    }
-
-    public Data.ResultType getExpectedResultType(String query)
-    {
-        // Execute instant query to determine whether the query is a log or metric expression.
-        final URI uri =
-                HttpUriBuilder.uriBuilderFrom(lokiEndpoint)
-                        .appendPath("/loki/api/v1/query")
-                        .addParameter("query", query)
-                        .build();
-
-        try (Response response = requestUri(uri)) {
-            if (response.isSuccessful() && response.body() != null) {
-                return deserializeResultType(response.body().byteStream());
-            }
-            throw new TrinoException(LokiErrorCode.LOKI_UNKNOWN_ERROR, "Bad response " + response.code() + " " + response.message());
-        }
-        catch (IOException e) {
-            throw new TrinoException(LokiErrorCode.LOKI_UNKNOWN_ERROR, "Error reading instant query", e);
-        }
-    }
-
-    private Data.ResultType deserializeResultType(InputStream input)
-            throws IOException
-    {
-        ObjectMapper mapper = new ObjectMapper();
-        var node = mapper.readTree(input);
-        if (Objects.equals(node.get("data").get("resultType").asText(), "streams")) {
-            return Data.ResultType.Streams;
-        }
-        else {
-            return Data.ResultType.Matrix;
-        }
-    }
+  }
 }

@@ -11,28 +11,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.jeschkies.loki.client.model;
+package io.github.jeschkies.loki.client;
 
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import java.time.Instant;
 
-@JsonDeserialize(using = MetricPointDeserializer.class)
-public class MetricPoint {
-  public Long getTs() {
-    return ts;
+public final class Time {
+  private Time() {
+    throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
   }
 
-  public void setTs(Long ts) {
-    this.ts = ts;
+  public static Long now() {
+    // This precision is fine for us.
+    var now = Instant.now();
+    return nanosFromInstant(now);
   }
 
-  public Double getValue() {
-    return v;
+  public static Long nanosFromInstant(Instant i) {
+    return i.getEpochSecond() * 1000000000L + i.getNano(); // as nanoseconds
   }
-
-  public void setValue(Double v) {
-    this.v = v;
-  }
-
-  private Long ts;
-  private Double v;
 }

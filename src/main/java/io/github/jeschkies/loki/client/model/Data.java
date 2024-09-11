@@ -19,40 +19,40 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class Data
-{
-    public enum ResultType
-    {
-        @JsonProperty("streams") Streams,
-        @JsonProperty("matrix") Matrix;
-    }
+public class Data {
+  public enum ResultType {
+    @JsonProperty("streams")
+    Streams,
+    @JsonProperty("matrix")
+    Matrix;
+  }
 
-    public ResultType getResultType()
-    {
-        return resultType;
-    }
+  public ResultType getResultType() {
+    return resultType;
+  }
 
-    public void setResultType(ResultType resultType)
-    {
-        this.resultType = resultType;
-    }
+  public void setResultType(ResultType resultType) {
+    this.resultType = resultType;
+  }
 
-    private ResultType resultType;
+  private ResultType resultType;
 
-    @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "resultType", include = JsonTypeInfo.As.EXTERNAL_PROPERTY)
-    @JsonSubTypes(value = {
-            @JsonSubTypes.Type(value = Streams.class, name = "streams"),
-            @JsonSubTypes.Type(value = Matrix.class, name = "matrix")
-    })
-    private QueryResult.Result result;
+  @JsonTypeInfo(
+      use = JsonTypeInfo.Id.NAME,
+      property = "resultType",
+      include = JsonTypeInfo.As.EXTERNAL_PROPERTY)
+  @JsonSubTypes(
+      value = {
+        @JsonSubTypes.Type(value = Streams.class, name = "streams"),
+        @JsonSubTypes.Type(value = Matrix.class, name = "matrix")
+      })
+  private QueryResult.Result result;
 
-    public QueryResult.Result getResult()
-    {
-        return result;
-    }
+  public QueryResult.Result getResult() {
+    return result;
+  }
 
-    public void setResult(QueryResult.Result result)
-    {
-        this.result = result;
-    }
+  public void setResult(QueryResult.Result result) {
+    this.result = result;
+  }
 }
