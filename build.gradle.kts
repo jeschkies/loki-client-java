@@ -2,6 +2,7 @@ plugins {
     id("java")
     checkstyle
     id("com.diffplug.spotless") version "6.25.0"
+    id("maven-publish")
 }
 
 group = "io.github.jeschkies"
@@ -35,3 +36,44 @@ spotless {
 tasks.test {
     useJUnitPlatform()
 }
+
+
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            artifactId = "loki-client"
+            from(components["java"])
+            versionMapping {
+                usage("java-api") {
+                    fromResolutionOf("runtimeClasspath")
+                }
+                usage("java-runtime") {
+                    fromResolutionResult()
+                }
+            }
+            pom {
+                name = "Loki Client"
+                description = "Loki Java client that sends and retrieves logs to and from a running Loki server"
+                url = "https://www.github.com/jeschkies/loki-client-java"
+                licenses {
+                    license {
+                        name = "The Apache License, Version 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                    }
+                }
+                developers {
+                    developer {
+                        id = "jeschkies"
+                    }
+                }
+                scm {
+                    connection = "scm:git:git@github.com:jeschkies/loki-client-java.git"
+                    developerConnection= "scm:git:git@github.com:jeschkies/loki-client-java.git"
+                    url = "https://github.com/jeschkies/loki-client-java"
+                }
+            }
+        }
+    }
+}
+
