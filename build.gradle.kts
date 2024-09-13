@@ -110,8 +110,9 @@ signing {
 
 mavenCentral {
     repoDir = layout.buildDirectory.dir("repos/bundles")
-    // TODO: DO NOT CHECK IN
+    val user = System.getenv("MAVEN_PORTAL_USER")
+    val password = System.getenv("MAVEN_PORTAL_PASSWORD")
     @OptIn(ExperimentalEncodingApi::class)
-    authToken = Base64.Default.encode("".encodeToByteArray())
+    authToken = Base64.Default.encode("$user:$password".encodeToByteArray())
     publishingType = "AUTOMATIC"
 }
