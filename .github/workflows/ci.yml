@@ -15,4 +15,7 @@ jobs:
     - name: Setup Gradle
       uses: gradle/actions/setup-gradle@v3
     - name: Build
+      env:
+        SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+        SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
       run: ./gradlew build
