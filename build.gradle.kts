@@ -1,12 +1,18 @@
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
+
 plugins {
-    id("java")
+    id("java-library")
     checkstyle
     id("com.diffplug.spotless") version "6.25.0"
+
     id("maven-publish")
+    signing
+    id("tech.yanand.maven-central-publish") version "1.2.0"
 }
 
 group = "io.github.jeschkies"
-version = "0.0.4-SNAPSHOT"
+version = "0.0.1"
 
 repositories {
     mavenCentral()
@@ -38,13 +44,18 @@ tasks.test {
     useJUnitPlatform()
 }
 
-
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
 
 publishing {
     publications {
         create<MavenPublication>("mavenJava") {
-            artifactId = "loki-client"
+            version = "0.0.1"
+
             from(components["java"])
+
             versionMapping {
                 usage("java-api") {
                     fromResolutionOf("runtimeClasspath")
@@ -63,18 +74,44 @@ publishing {
                         url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
                     }
                 }
+                signing {
+                    sign(publishing.publications["mavenJava"])
+                    sign(configurations["archives"])
+                }
                 developers {
                     developer {
                         id = "jeschkies"
+                        name = "Karsten Jeschkies"
                     }
                 }
                 scm {
-                    connection = "scm:git:git@github.com:jeschkies/loki-client-java.git"
-                    developerConnection= "scm:git:git@github.com:jeschkies/loki-client-java.git"
+                    connection = "scm:git:https://github.com:jeschkies/loki-client-java.git"
+                    developerConnection= "scm:git:ssh://github.com:jeschkies/loki-client-java.git"
                     url = "https://github.com/jeschkies/loki-client-java"
                 }
             }
         }
     }
+
+    repositories {
+        maven {
+            name = "Local"
+            url = uri(layout.buildDirectory.dir("repos/bundles"))
+        }
+    }
 }
 
+signing {
+    val keyPassword = System.getenv("SIGNING_KEY_PASSWORD")
+    val secretKey = System.getenv("SIGNING_KEY")
+    useInMemoryPgpKeys(secretKey, keyPassword)
+    sign(publishing.publications["mavenJava"])
+}
+
+mavenCentral {
+    repoDir = layout.buildDirectory.dir("repos/bundles")
+    // TODO: DO NOT CHECK IN
+    @OptIn(ExperimentalEncodingApi::class)
+    authToken = Base64.Default.encode("f3fJNjV/:rh3BnS6hYi9ibBwKUqkO60kBzo0YbYnax0eZvrV0py8D".encodeToByteArray())
+    publishingType = "AUTOMATIC"
+}
