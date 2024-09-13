@@ -26,7 +26,9 @@ public class MatrixDeserializer extends JsonDeserializer<Matrix> {
     Matrix matrix = new Matrix();
     if (jp.currentToken() == JsonToken.START_ARRAY) {
       jp.nextToken();
-      matrix.setMetrics(Lists.newArrayList(jp.readValuesAs(Matrix.Metric.class)));
+      if (jp.currentToken() != JsonToken.END_ARRAY) {
+        matrix.setMetrics(Lists.newArrayList(jp.readValuesAs(Matrix.Metric.class)));
+      }
     }
 
     return matrix;

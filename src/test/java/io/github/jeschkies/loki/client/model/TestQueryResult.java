@@ -38,7 +38,7 @@ public class TestQueryResult {
   }
 
   @Test
-  void testDeserializeEmpty() throws IOException {
+  void testDeserializeEmptyStreams() throws IOException {
     String json = "{\"status\":\"success\",\"data\":{\"resultType\":\"streams\",\"result\":[]}}";
     final InputStream input = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
     QueryResult result = QueryResult.fromJSON(input);
@@ -47,6 +47,18 @@ public class TestQueryResult {
     assertThat(result.getData().getResult()).isInstanceOf(Streams.class);
     var streams = ((Streams) result.getData().getResult()).getStreams();
     assertThat(streams).hasSize(0);
+  }
+
+  @Test
+  void testDeserializeEmptyMatrix() throws IOException {
+    String json = "{\"status\":\"success\",\"data\":{\"resultType\":\"matrix\",\"result\":[]}}";
+    final InputStream input = new ByteArrayInputStream(json.getBytes(StandardCharsets.UTF_8));
+    QueryResult result = QueryResult.fromJSON(input);
+
+    assertThat(result.getData().getResultType()).isEqualTo(Data.ResultType.Matrix);
+    assertThat(result.getData().getResult()).isInstanceOf(Matrix.class);
+    var metrics = ((Matrix) result.getData().getResult()).getMetrics();
+    assertThat(metrics).hasSize(0);
   }
 
   @Test
