@@ -112,6 +112,6 @@ mavenCentral {
     repoDir = layout.buildDirectory.dir("repos/bundles")
     // TODO: DO NOT CHECK IN
     @OptIn(ExperimentalEncodingApi::class)
-    authToken = Base64.Default.encode("f3fJNjV/:rh3BnS6hYi9ibBwKUqkO60kBzo0YbYnax0eZvrV0py8D".encodeToByteArray())
+    authToken = Base64.Default.encode("".encodeToByteArray())
     publishingType = "AUTOMATIC"
 }
