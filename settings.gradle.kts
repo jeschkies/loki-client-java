@@ -1,2 +1,3 @@
-rootProject.name = "loki-client"
+rootProject.name = "loki-client-root"
+include("client", "testutils")
 
