@@ -1,7 +1,7 @@
 plugins {
     id("java-library")
-    //checkstyle
-    //id("com.diffplug.spotless") version "6.25.0"
+    checkstyle
+    id("com.diffplug.spotless") version "6.25.0"
 
     //id("maven-publish")
     //signing
@@ -18,4 +18,14 @@ repositories {
 dependencies {
     implementation("com.google.guava:guava:33.3.0-jre")
     implementation("org.testcontainers:testcontainers:1.20.1")
+}
+
+checkstyle {
+    toolVersion = "10.18.1"
+}
+
+spotless {
+    java {
+        googleJavaFormat()
+    }
 }
