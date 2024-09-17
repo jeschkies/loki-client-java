@@ -44,6 +44,15 @@ public class LokiClient {
     this.httpClient = clientBuilder.build();
   }
 
+  /**
+   * Perform a Loki range query.
+   * @param lokiQuery The LogQL query string.
+   * @param start Start of the query time range.
+   * @param end End of the query time range.
+   * @return the query response if successful.
+   * @throws LokiClientException when the HTTP response is not successful.
+   * @see <a href="https://grafana.com/docs/loki/latest/reference/loki-http-api/#query-logs-within-a-range-of-time">Loki Range Query API</a>
+   */
   public QueryResult rangeQuery(String lokiQuery, Instant start, Instant end)
       throws LokiClientException {
     final URI uri =
