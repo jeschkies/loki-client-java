@@ -23,4 +23,4 @@ jobs:
           SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
           MAVEN_PORTAL_USER: ${{ secrets.MAVEN_PORTAL_USER }}
           MAVEN_PORTAL_PASSWORD: ${{ secrets.MAVEN_PORTAL_PASSWORD }}
-        run: ./gradlew publish publishToMavenCentralPortal
+        run: ./gradlew clean publish publishToMavenCentralPortal
