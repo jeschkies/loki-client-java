@@ -11,23 +11,16 @@ plugins {
     id("tech.yanand.maven-central-publish") version "1.2.0"
 }
 
+// TODO: share between projects
 group = "io.github.jeschkies"
-version = "0.0.1"
+version = "0.0.2"
 
 repositories {
     mavenCentral()
 }
-
 dependencies {
-    implementation("com.fasterxml.jackson.core:jackson-annotations:2.17.2")
-    implementation("com.fasterxml.jackson.core:jackson-databind:2.17.2")
     implementation("com.google.guava:guava:33.3.0-jre")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-
-    testImplementation("org.assertj:assertj-core:3.26.3")
-    testImplementation(platform("org.junit:junit-bom:5.10.0"))
-    testImplementation("org.junit.jupiter:junit-jupiter")
-    testImplementation(project(":testutils"))
+    implementation("org.testcontainers:testcontainers:1.20.1")
 }
 
 checkstyle {
@@ -40,10 +33,6 @@ spotless {
     }
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
-
 java {
     withJavadocJar()
     withSourcesJar()
@@ -53,8 +42,8 @@ publishing {
     publications {
         create<MavenPublication>("mavenJava") {
             groupId = "io.github.jeschkies"
-            artifactId = "loki-client"
-            version = "0.0.1"
+            artifactId = "loki-client-testutils"
+            version = "0.0.2"
 
             from(components["java"])
 
