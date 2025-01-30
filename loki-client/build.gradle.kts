@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "io.github.jeschkies"
-version = "0.0.2"
+version = "0.0.3"
 
 repositories {
     mavenCentral()
@@ -54,7 +54,7 @@ publishing {
         create<MavenPublication>("mavenJava") {
             groupId = "io.github.jeschkies"
             artifactId = "loki-client"
-            version = "0.0.2"
+            version = "0.0.3"
 
             from(components["java"])
 
