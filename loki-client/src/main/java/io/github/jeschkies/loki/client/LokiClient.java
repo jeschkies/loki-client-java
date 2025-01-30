@@ -46,16 +46,37 @@ public class LokiClient {
 
   /**
    * Perform a Loki range query.
+   *
    * @param lokiQuery The LogQL query string.
    * @param start Start of the query time range.
    * @param end End of the query time range.
    * @return the query response if successful.
    * @throws LokiClientException when the HTTP response is not successful.
-   * @see <a href="https://grafana.com/docs/loki/latest/reference/loki-http-api/#query-logs-within-a-range-of-time">Loki Range Query API</a>
+   * @see <a
+   *     href="https://grafana.com/docs/loki/latest/reference/loki-http-api/#query-logs-within-a-range-of-time">Loki
+   *     Range Query API</a>
    */
   public QueryResult rangeQuery(String lokiQuery, Instant start, Instant end)
       throws LokiClientException {
-    final URI uri =
+    return rangeQuery(lokiQuery, start, end, 0);
+  }
+
+  /**
+   * Perform a Loki range query.
+   *
+   * @param lokiQuery The LogQL query string.
+   * @param start Start of the query time range.
+   * @param end End of the query time range.
+   * @param stepSeconds The step size in seconds.
+   * @return the query response if successful.
+   * @throws LokiClientException when the HTTP response is not successful.
+   * @see <a
+   *     href="https://grafana.com/docs/loki/latest/reference/loki-http-api/#query-logs-within-a-range-of-time">Loki
+   *     Range Query API</a>
+   */
+  public QueryResult rangeQuery(String lokiQuery, Instant start, Instant end, int stepSeconds)
+      throws LokiClientException {
+    var uriBuilder =
         new HttpUrl.Builder()
             .scheme(this.lokiEndpoint.getScheme())
             .host(this.lokiEndpoint.getHost())
@@ -64,15 +85,23 @@ public class LokiClient {
             .addQueryParameter("query", lokiQuery)
             .addQueryParameter("start", Time.nanosFromInstant(start).toString())
             .addQueryParameter("end", Time.nanosFromInstant(end).toString())
-            .addQueryParameter("direction", "forward")
-            .build()
-            .uri();
+            .addQueryParameter("direction", "forward");
+
+    if (stepSeconds != 0) {
+      uriBuilder.addQueryParameter("step", String.format("%ds", stepSeconds));
+    }
+
+    final URI uri = uriBuilder.build().uri();
 
     try (Response response = requestUri(uri)) {
       if (response.isSuccessful() && response.body() != null) {
         return QueryResult.fromJSON(response.body().byteStream());
       }
-      throw new LokiClientException("Bad response " + response.code() + " " + response.message());
+      String error = response.code() + ": " + response.message();
+      if (response.body() != null) {
+        error += " " + response.body().string();
+      }
+      throw new LokiClientException(error);
     } catch (IOException e) {
       throw new LokiClientException("Error reading range query", e);
     }
