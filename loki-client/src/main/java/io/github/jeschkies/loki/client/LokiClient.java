@@ -17,12 +17,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.github.jeschkies.loki.client.model.Data;
 import io.github.jeschkies.loki.client.model.QueryResult;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
-import java.util.Objects;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -183,34 +181,7 @@ public class LokiClient {
   }
 
   public Data.ResultType getExpectedResultType(String query) throws LokiClientException {
-    // Execute instant query to determine whether the query is a log or metric expression.
-    final URI uri =
-        new HttpUrl.Builder()
-            .scheme(this.lokiEndpoint.getScheme())
-            .host(this.lokiEndpoint.getHost())
-            .port(this.lokiEndpoint.getPort())
-            .addPathSegments("loki/api/v1/query")
-            .addQueryParameter("query", query)
-            .build()
-            .uri();
-
-    try (Response response = requestUri(uri)) {
-      if (response.isSuccessful() && response.body() != null) {
-        return deserializeResultType(response.body().byteStream());
-      }
-      throw new LokiClientException("Bad response " + response.code() + " " + response.message());
-    } catch (IOException e) {
-      throw new LokiClientException("Error reading instant query", e);
-    }
-  }
-
-  private Data.ResultType deserializeResultType(InputStream input) throws IOException {
-    ObjectMapper mapper = new ObjectMapper();
-    var node = mapper.readTree(input);
-    if (Objects.equals(node.get("data").get("resultType").asText(), "streams")) {
-      return Data.ResultType.Streams;
-    } else {
-      return Data.ResultType.Matrix;
-    }
+    var result = this.rangeQuery(query, Instant.now().minus(Duration.ofNanos(1)), Instant.now(), 0);
+    return result.getData().getResultType();
   }
 }
