@@ -23,7 +23,7 @@ class TestIntegration {
   // TODO: maybe make this a resource
   @BeforeAll
   public static void setup() throws IOException {
-    server = new LokiTestServer();
+    server = new LokiTestServer("3.2.0", false);
     client = new LokiClient(new LokiClientConfig(server.getUri(), Duration.ofSeconds(10)));
   }
 
@@ -52,6 +52,15 @@ class TestIntegration {
     assertThat(values.getFirst().getValue()).isEqualTo(1.0);
     assertThat(Instant.ofEpochSecond(values.getFirst().getTs()))
         .isEqualTo(start.plus(Duration.ofMinutes(5)));
+  }
+
+  @Test
+  void TestExpectedResultType() throws LokiClientException {
+    var type = client.getExpectedResultType("{test=\"type\"}");
+    assertThat(type).isEqualTo(Data.ResultType.Streams);
+
+    type = client.getExpectedResultType("count_over_time({test=\"type\"}[5m])");
+    assertThat(type).isEqualTo(Data.ResultType.Matrix);
   }
 
   @AfterAll
