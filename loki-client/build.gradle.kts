@@ -12,7 +12,7 @@ plugins {
 }
 
 group = "io.github.jeschkies"
-version = "0.0.4"
+version = "0.0.5"
 
 repositories {
     mavenCentral()
@@ -25,6 +25,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     testImplementation("org.assertj:assertj-core:3.26.3")
+    testImplementation("org.awaitility:awaitility:4.3.0")
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
     testImplementation("org.junit.jupiter:junit-jupiter")
     testImplementation(project(":loki-client-testutils"))
@@ -54,7 +55,7 @@ publishing {
         create<MavenPublication>("mavenJava") {
             groupId = "io.github.jeschkies"
             artifactId = "loki-client"
-            version = "0.0.4"
+            version = "0.0.5"
 
             from(components["java"])
 

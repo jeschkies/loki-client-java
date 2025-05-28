@@ -21,6 +21,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
+import java.util.Optional;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -29,13 +30,19 @@ import okhttp3.RequestBody;
 import okhttp3.Response;
 
 public class LokiClient {
+
+  public static final String TenantIDHeader = "X-Scope-OrgID";
+
   private final OkHttpClient httpClient;
   private final URI lokiEndpoint;
+
+  private final Optional<String> tenantID;
 
   private static final MediaType JsonMediaType = MediaType.parse("application/json");
 
   public LokiClient(LokiClientConfig config) {
     this.lokiEndpoint = config.uri();
+    this.tenantID = Optional.ofNullable(config.tenantID());
 
     OkHttpClient.Builder clientBuilder =
         new OkHttpClient.Builder().readTimeout(Duration.ofMillis(config.readTimeout().toMillis()));
@@ -56,7 +63,7 @@ public class LokiClient {
    */
   public QueryResult rangeQuery(String lokiQuery, Instant start, Instant end)
       throws LokiClientException {
-    return rangeQuery(lokiQuery, start, end, 0);
+    return rangeQuery(lokiQuery, start, end, 0, 0);
   }
 
   /**
@@ -66,13 +73,15 @@ public class LokiClient {
    * @param start Start of the query time range.
    * @param end End of the query time range.
    * @param stepSeconds The step size in seconds.
+   * @param limit The maximum number of log entries to return.
    * @return the query response if successful.
    * @throws LokiClientException when the HTTP response is not successful.
    * @see <a
    *     href="https://grafana.com/docs/loki/latest/reference/loki-http-api/#query-logs-within-a-range-of-time">Loki
    *     Range Query API</a>
    */
-  public QueryResult rangeQuery(String lokiQuery, Instant start, Instant end, int stepSeconds)
+  public QueryResult rangeQuery(
+      String lokiQuery, Instant start, Instant end, int stepSeconds, int limit)
       throws LokiClientException {
     var uriBuilder =
         new HttpUrl.Builder()
@@ -87,6 +96,10 @@ public class LokiClient {
 
     if (stepSeconds != 0) {
       uriBuilder.addQueryParameter("step", String.format("%ds", stepSeconds));
+    }
+
+    if (limit != 0) {
+      uriBuilder.addQueryParameter("limit", String.format("%d", limit));
     }
 
     final URI uri = uriBuilder.build().uri();
@@ -177,11 +190,16 @@ public class LokiClient {
 
   public Response requestUri(URI uri) throws IOException {
     Request.Builder requestBuilder = new Request.Builder().url(uri.toString());
+    this.tenantID.ifPresent(
+        tenantID -> {
+          requestBuilder.header(TenantIDHeader, tenantID);
+        });
     return httpClient.newCall(requestBuilder.build()).execute();
   }
 
   public Data.ResultType getExpectedResultType(String query) throws LokiClientException {
-    var result = this.rangeQuery(query, Instant.now().minus(Duration.ofNanos(1)), Instant.now(), 0);
+    var result =
+        this.rangeQuery(query, Instant.now().minus(Duration.ofNanos(1)), Instant.now(), 0, 0);
     return result.getData().getResultType();
   }
 }
