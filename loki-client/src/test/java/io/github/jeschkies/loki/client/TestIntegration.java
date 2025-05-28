@@ -1,6 +1,7 @@
 package io.github.jeschkies.loki.client;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.awaitility.Awaitility.await;
 
 import com.google.common.collect.ImmutableMap;
 import io.github.jeschkies.loki.LokiTestServer;
@@ -34,22 +35,37 @@ class TestIntegration {
 
     client.pushLogLine(
         "line foo", start.plus(Duration.ofMinutes(4)), ImmutableMap.of("test", "roundtrip"));
+    client.pushLogLine(
+        "line bar", start.plus(Duration.ofMinutes(5)), ImmutableMap.of("test", "roundtrip"));
     client.flush();
-    QueryResult result = client.rangeQuery("{test=\"roundtrip\"}", start, end);
+    await()
+        .atMost(Duration.ofSeconds(10))
+        .untilAsserted(
+            () -> {
+              QueryResult result = client.rangeQuery("{test=\"roundtrip\"}", start, end);
+              assertThat(result.getData().getResultType()).isEqualTo(Data.ResultType.Streams);
+              assertThat(result.getData().getResult()).isInstanceOf(Streams.class);
+              var streams = ((Streams) result.getData().getResult()).getStreams();
+              assertThat(streams).hasSize(1);
+              assertThat(streams.getFirst().values()).hasSize(2);
+              assertThat(streams.getFirst().values().getFirst().getLine()).isEqualTo("line foo");
+            });
+
+    QueryResult result = client.rangeQuery("{test=\"roundtrip\"}", start, end, 300, 1);
     assertThat(result.getData().getResultType()).isEqualTo(Data.ResultType.Streams);
     assertThat(result.getData().getResult()).isInstanceOf(Streams.class);
     var streams = ((Streams) result.getData().getResult()).getStreams();
     assertThat(streams).hasSize(1);
-    assertThat(streams.getFirst().values().getFirst().getLine()).isEqualTo("line foo");
+    assertThat(streams.getFirst().values()).hasSize(1);
 
-    result = client.rangeQuery("count_over_time({test=\"roundtrip\"}[5m])", start, end, 300);
+    result = client.rangeQuery("count_over_time({test=\"roundtrip\"}[5m])", start, end, 300, 1);
     assertThat(result.getData().getResultType()).isEqualTo(Data.ResultType.Matrix);
     assertThat(result.getData().getResult()).isInstanceOf(Matrix.class);
     var metrics = ((Matrix) result.getData().getResult()).getMetrics();
     assertThat(metrics).hasSize(1);
     var values = metrics.getFirst().values();
     assertThat(values).hasSize(1);
-    assertThat(values.getFirst().getValue()).isEqualTo(1.0);
+    assertThat(values.getFirst().getValue()).isEqualTo(2.0);
     assertThat(Instant.ofEpochSecond(values.getFirst().getTs()))
         .isEqualTo(start.plus(Duration.ofMinutes(5)));
   }
